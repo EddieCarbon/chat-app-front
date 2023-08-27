@@ -1,25 +1,56 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import LoginPage from './Pages/LoginPage';
+import RegisterPage from './Pages/RegisterPage';
+import DashboardPage from './Pages/DashboardPage';
+import IndexPage from './Pages/IndexPage';
+import ChatroomPage from './Pages/ChatroomPage';
+import makeToast from './Toaster';
+import { io } from "socket.io-client";
 
-function App() {
+export default function App() {
+  const [socket, setSocket] = React.useState(null);
+
+  const setupSocket = () => {
+    const token = localStorage.getItem("CC_Token");
+    if (token && !socket) {
+      console.log("setupSocket");
+      const newSocket = io("http://localhost:8000", {
+        query: {
+          token: localStorage.getItem("CC_Token"),
+        },
+      });
+
+      newSocket.on("disconnect", () => {
+        setSocket(null);
+        setTimeout(setupSocket, 3000);
+        makeToast("error", "Socket Disconnected!");
+      });
+
+      newSocket.on("connect", () => {
+        makeToast("success", "Socket Connected!");
+      });
+
+      setSocket(newSocket);
+    }
+  };
+
+  React.useEffect(() => {
+    setupSocket();
+    //eslint-disable-next-line
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<IndexPage/>} exact />
+        <Route path="/login" element={<LoginPage setupSocket={setupSocket} />} exact />
+        <Route path='/register' element={<RegisterPage/>} exact />
+        <Route path='/dashboard' element={<DashboardPage socket={socket} />} exact />
+        <Route path='/chatroom/:id' element={<ChatroomPage socket={socket} />} exact />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
-export default App;
+
